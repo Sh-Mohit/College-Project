@@ -1,0 +1,35 @@
+
+// dependencies-----------
+nodemon
+bcrypt
+mongoose
+jsonwebtoken
+multer
+express
+cors_origin
+dotenv
+ws
+http
+
+
+
+
+basic project structure--------
+
+data models diagram-----------
+
+data models schema-----------
+
+multer setup----------
+
+
+
+user-cotroller almost done...
+notificationSchema , friendRequestSchema added...
+
+
+
+3 days long frustration , now solved : message.controllers.js : issue => url_validtor_function backfire
+
+
+
