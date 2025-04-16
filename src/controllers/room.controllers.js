@@ -9,6 +9,7 @@ import { Message } from "../models/message.models.js"
 import mongoose from "mongoose"
 import { User } from "../models/user.models.js"
 import jwt from "jsonwebtoken"
+import { io } from "../app.js"
 
 function verifyAdmin(usersArray, userId) {
     // console.log(usersArray);
@@ -449,9 +450,43 @@ const getRoomInfo = asyncHandler( async (req, res) => {
     }
 })
 
-const enterRoom = asyncHandler( async (req, res) => {
-    
-})
+const enterRoom = asyncHandler(async (req, res) => {
+    const userId = req.user._id; // Authenticated user ID
+    const { roomId } = req.params; // Room ID from the request
+
+    if (!userId) {
+        throw new ApiError(400, "Invalid user ID");
+    }
+
+    if (!roomId) {
+        throw new ApiError(400, "Room ID is required");
+    }
+
+    // Validate the room
+    const room = await Room.findById(roomId);
+    if (!room) {
+        throw new ApiError(404, "Room not found");
+    }
+
+    // Check if the user is part of the room
+    if (!checkUserAlreadyInRoom(room.users, userId)) {
+        throw new ApiError(403, "User is not a member of this room");
+    }
+
+    try {
+        // Emit an event to join the socket.io room
+        // const socket = req.app.get("socket"); // Assuming the socket instance is stored in the app
+
+        io.to(roomId).emit("user-joined", { userId, roomId });
+        console.log(`User ${userId} entered socket.io room: ${roomId}`);
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, room, "Entered room successfully"));
+    } catch (error) {
+        throw new ApiError(500, "Server error occurred while entering the room", error);
+    }
+});
 
 
 
@@ -465,7 +500,8 @@ export {
     generateJoinLink,
     joinRoomUsingLink,
     getRoomInfo,
-    leaveRoom
+    leaveRoom,
+    enterRoom
 }
 
 /* suggested...

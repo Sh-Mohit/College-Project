@@ -8,7 +8,8 @@ import {
     getRoomInfo,
     joinRoom,
     joinRoomUsingLink,
-    leaveRoom
+    leaveRoom,
+    enterRoom
 } from "../controllers/room.controllers.js"
 
 
@@ -22,6 +23,7 @@ router.route("/gen-join-link/:roomId").post(verifyJWT, generateJoinLink)
 router.route("/join-room-using-link").get(verifyJWT, joinRoomUsingLink)
 router.route("/get-room-info/:roomId").get(verifyJWT, getRoomInfo)
 router.route("/leave-room/:roomId").delete(verifyJWT, leaveRoom)
+router.route("/enter-room/:roomId").post(verifyJWT,enterRoom)
 
 
 

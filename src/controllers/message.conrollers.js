@@ -5,6 +5,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { Message } from "../models/message.models.js";
 import { ChatRoom } from "../models/chatRoom.models.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { io } from "../app.js";
+import { Room } from "../models/room.models.js";
 
 async function uploaderFunction(array) {
 
@@ -19,7 +21,7 @@ async function uploaderFunction(array) {
             validPaths.map(imageLocalPath => uploadOnCloudinary(imageLocalPath))
         )
         console.log(rexArray);
-        console.log(9);
+        // console.log(9);
 
         return rexArray
     } catch (error) {
@@ -44,56 +46,84 @@ async function deletionFunction(array) {
 
 
 
-const pushAMessage = asyncHandler( async (req, res) => {
-    
-    const { messageText , messageURL } = req.body
-    const { chatRoomId } = req.params
+const pushAMessage =async (reqOrParams, res = null) => {
+    // Check if called via HTTP (req, res) or socket.io (params only)
+    const isHttpRequest = !!res;
 
-    if(!chatRoomId){
-        throw new ApiError(403, "ChatRoom id is required")
+    // Extract parameters based on the context
+    const { messageText, messageURL, roomId, userId } = isHttpRequest
+        ? { 
+            messageText: reqOrParams.body.messageText, 
+            messageURL: reqOrParams.body.messageURL, 
+            roomId: reqOrParams.params.roomId, 
+            userId: reqOrParams.user._id 
+        }
+        : reqOrParams; // For socket.io, parameters are passed directly
+
+
+    if(!roomId){
+        throw new ApiError(400, "RoomId is required")
     }
 
-    const verifyChatRoom = await ChatRoom.findById(chatRoomId)
-    if(!verifyChatRoom){
-        throw new ApiError(404, "No room exists with this roomId")
+    const gettingRoom = await Room.findById(roomId)
+    if (!gettingRoom) {
+        throw new ApiError(400, "Room doesn't exist")
+    }
+    const chatRoomId = gettingRoom?.chatRoom
+    if (!chatRoomId) {
+        throw new ApiError(403, "ChatRoom ID is required");
     }
 
-    const imagesLocalPathArray = req.files.images || []
+    const verifyChatRoom = await ChatRoom.findById(chatRoomId);
+    if (!verifyChatRoom) {
+        throw new ApiError(404, "No room exists with this roomId");
+    }
+
+    const imagesLocalPathArray = isHttpRequest ? reqOrParams.files?.images || [] : [];
     let uploadedImagesArray;
-    if(imagesLocalPathArray){
-        uploadedImagesArray = imagesLocalPathArray
+    if (imagesLocalPathArray.length > 0) {
+        uploadedImagesArray = await uploaderFunction(imagesLocalPathArray);
     } else {
-        uploadedImagesArray = await uploaderFunction(imagesLocalPathArray)
+        uploadedImagesArray = [];
     }
-    
+
     try {
+        // Create the message in the database
         const createAMessage = await Message.create({
             text: messageText || "",
             images: uploadedImagesArray,
             url: messageURL || "",
-            owner: req.user._id,
-            chatRoom: new mongoose.Types.ObjectId(chatRoomId)
-        })        
+            owner: userId,
+            chatRoom: new mongoose.Types.ObjectId(chatRoomId),
+        });
 
-        const message = await Message.findById(createAMessage._id)
-        if(!message){
-            throw new ApiError(500, "Server error occurred while creating message")
+        const message = await Message.findById(createAMessage._id);
+        if (!message) {
+            throw new ApiError(500, "Server error occurred while creating message");
         }
 
-        verifyChatRoom.message.push(message._id)
-        await verifyChatRoom.save({validateBeforeSave: false})
+        // Add the message to the chat room
+        verifyChatRoom.message.push(message._id);
+        await verifyChatRoom.save({ validateBeforeSave: false });
 
-        return res
-                .status(200)
-                .json(new ApiResponse(200, message, "Message sent..."))
+        // Emit the message to the room via socket.io
+        io.to(chatRoomId).emit("message", message);
+
+        // Return response for HTTP requests
+        if (isHttpRequest) {
+            return res.status(200).json(new ApiResponse(200, message, "Message sent..."));
+        }
+
+        // Return the message for socket.io
+        return message;
     } catch (error) {
-        if(uploadedImagesArray){
-            await deletionFunction(uploadedImagesArray)
+        if (uploadedImagesArray) {
+            await deletionFunction(uploadedImagesArray);
         }
 
-        throw new ApiError(500, "Server error occurred while creating message (general) ", error.message)
+        throw new ApiError(500, "Server error occurred while creating message (general)", error.message);
     }
-})
+}
 
 const deleteAMessage = asyncHandler(async (req, res) => {
 

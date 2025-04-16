@@ -122,7 +122,7 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Incorrect password")
     }
     const { refreshToken, accessToken } = await generateAccessAndRefreshToken(user._id)
-    console.log(accessToken);
+    // console.log(accessToken);
     
     const loggedInUser = await User.findById(user?._id).select("-password -refreshToken")
     if (!loggedInUser) {
