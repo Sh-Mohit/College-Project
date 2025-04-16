@@ -41,8 +41,14 @@ io.on("connection", (socket) => {
     
     // console.log(socket);
 
-    socket.on("enter-room", (roomId) => {
+    socket.on("enter-room", (unsanitizedRoomId) => {
+        const roomId = unsanitizedRoomId.trim(); // Sanitize the roomId
         socket.join(roomId); // Join the specific room
+
+        // const room = io.sockets.adapter.rooms.get(roomId);
+        // console.log(room ? `Room ${roomId} exists with ${room.size} members` : `Room ${roomId} does not exist`);
+
+
         console.log(`User ${socket.id} entered room: ${roomId}`);
 
         socket.emit("room-entered", `Entered room successfully ${roomId}`);
@@ -60,8 +66,18 @@ io.on("connection", (socket) => {
                 userId: userId,
                 messageURL: msgurl
             });
-            console.log(savedMessage);
-            io.to(xroomId).emit("message", `${savedMessage}`)
+
+            // console.log(savedMessage);
+            console.log(`Socket rooms:`, socket.rooms);
+            console.log(`Room ${xroomId} members:`, io.sockets.adapter.rooms.get(xroomId));
+
+            
+            if (!socket.rooms.has(roomId)) {
+                console.log(`Socket ${socket.id} is not part of room ${roomId}, forcing join.`);
+                socket.join(roomId);
+            }
+            io.to(roomId).emit("message", `${savedMessage}`);
+            
             console.log("sent");
             
         } catch (error) {
