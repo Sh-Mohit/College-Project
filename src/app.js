@@ -7,7 +7,7 @@ import logRouter from "./routes/log.routes.js"
 import friendRequestRouter from "./routes/friendrequest.routes.js"
 import messageRouter from "./routes/message.routes.js"
 import { Server } from "socket.io"
-import { pushAMessage } from "./controllers/message.conrollers.js"
+import { deleteAMessage, pushAMessage } from "./controllers/message.conrollers.js"
 import { pushALog, deleteALog } from "./controllers/log.controllers.js"
 
 
@@ -59,7 +59,6 @@ io.on("connection", (socket) => {
     socket.on("send-message", async (data) => {
         
         const { roomId, message, userId, msgurl, images } = data;
-        const xroomId = roomId;
         try {
             const savedMessage = await pushAMessage({
                 messageText : message,
@@ -71,7 +70,7 @@ io.on("connection", (socket) => {
 
             // console.log(savedMessage);
             console.log(`Socket rooms:`, socket.rooms);
-            console.log(`Room ${xroomId} members:`, io.sockets.adapter.rooms.get(xroomId));
+            console.log(`Room ${roomId} members:`, io.sockets.adapter.rooms.get(roomId));
 
             
             if (!socket.rooms.has(roomId)) {
@@ -87,6 +86,29 @@ io.on("connection", (socket) => {
             socket.emit("error","Failed to send message");
         }
     });
+
+    socket.on("delete-message", async (data) => {
+        const {chatRoomId, messageId, userId, roomId} = data
+        try{
+            const messageDeletion = await deleteAMessage({
+                userId: userId, 
+                chatRoomId: chatRoomId, 
+                messageId: messageId
+            })
+
+            if(!socket.rooms.has(roomId)){
+                console.log(`Socket ${socket.id} is not part of room ${roomId}, forcing join.`);
+                socket.join(roomId);
+            }
+
+            io.to(roomId).emit("message-deleted", `${messageDeletion}`);
+            
+            console.log("deleted message");
+        } catch (error) {
+            console.log("Error deleting message", error);
+            socket.emit('error', "Failed to delete message")
+        }
+    })
 
     socket.on("push-log", async(data) => {
         const {roomId, logText, logURL, logImages, userId} = data

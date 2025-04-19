@@ -46,7 +46,7 @@ async function deletionFunction(array) {
 
 
 
-const pushAMessage =async (reqOrParams, res = null) => {
+const pushAMessage = async (reqOrParams, res = null) => {
     // Check if called via HTTP (req, res) or socket.io (params only)
     const isHttpRequest = !!res;
 
@@ -125,10 +125,19 @@ const pushAMessage =async (reqOrParams, res = null) => {
     }
 }
 
-const deleteAMessage = asyncHandler(async (req, res) => {
+const deleteAMessage = async (reqOrParams, res = null) => {
 
-    const userId = req.user._id
-    const { chatRoomId, messageId } = req.params
+    // const userId = req.user._id
+    // const { chatRoomId, messageId } = req.params
+
+    const isHttpRequest = !!res // Check if called via HTTP (req, res) or socket.io (params only)
+    const {userId, chatRoomId, messageId } = isHttpRequest ? {
+        userId: reqOrParams.user._id,
+        chatRoomId: reqOrParams.params.chatRoomId,
+        messageId: reqOrParams.params.messageId
+    } : reqOrParams; // For socket.io, parameters are passed directly
+
+
     if ([userId, chatRoomId, messageId].some(item => item === "")) {
         throw new ApiError(400, "Invalid request")
     }
@@ -162,20 +171,24 @@ const deleteAMessage = asyncHandler(async (req, res) => {
         )
         await deletionFunction(getMessage.images)
 
-        console.log("items deleted successfully");
+        // console.log("items deleted successfully");
 
-        return res
-            .status(200)
-            .json(new ApiResponse(200,
-                { messageDeletion, deletionFromChatRoom },
-                "Deleted successfully"
-            ))
+        if(isHttpRequest){
+            return res
+                .status(200)
+                .json(new ApiResponse(200,
+                    { messageDeletion, deletionFromChatRoom },
+                    "Deleted successfully"
+                ))
+        }
+
+        return messageDeletion;
 
     } catch (error) {
         throw new ApiError(500, "Server error occurred while deleting message (general) ", error)
     }
 
-})
+}
 
 
 export {
