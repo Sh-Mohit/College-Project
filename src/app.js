@@ -9,6 +9,7 @@ import messageRouter from "./routes/message.routes.js"
 import { Server } from "socket.io"
 import { deleteAMessage, pushAMessage } from "./controllers/message.conrollers.js"
 import { pushALog, deleteALog } from "./controllers/log.controllers.js"
+import { enterRoom } from "./controllers/room.controllers.js"
 
 
 const app = express()
@@ -42,18 +43,30 @@ io.on("connection", (socket) => {
     
     // console.log(socket);
 
-    socket.on("enter-room", (unsanitizedRoomId) => {
-        const roomId = unsanitizedRoomId.trim(); // Sanitize the roomId
-        socket.join(roomId); // Join the specific room
+    socket.on("enter-room", async (data) => {
+        const { roomId, userId} = data;
+        const sanitizedUserId = userId.trim();
+        const sanitizedRoomId = roomId.trim();
+
+        try {
+            const userEnteredRoom = await enterRoom({
+                userId: sanitizedUserId,
+                roomId: sanitizedRoomId
+            })
+
+            socket.join(roomId);
+            console.log(`User ${socket.id} entered room: ${roomId}`);
+
+            io.to(roomId).emit("user-entered", `User ${socket.id} has entered the room`);
+            socket.emit("room-entered", `Entered room successfully ${roomId}`);
+
+        } catch (error) {
+            console.log("Error enttering the room", error);
+            console.log("error", "Failed to join room")
+        }
 
         // const room = io.sockets.adapter.rooms.get(roomId);
         // console.log(room ? `Room ${roomId} exists with ${room.size} members` : `Room ${roomId} does not exist`);
-
-
-        console.log(`User ${socket.id} entered room: ${roomId}`);
-
-        socket.emit("room-entered", `Entered room successfully ${roomId}`);
-        io.to(roomId).emit("user-joined", `User ${socket.id} has joined the room`);
     });
 
     socket.on("send-message", async (data) => {
@@ -161,6 +174,7 @@ io.on("connection", (socket) => {
             
         }
     })
+    
     
 })
 

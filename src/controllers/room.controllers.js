@@ -235,6 +235,8 @@ const joinRoom = asyncHandler(async (req, res) => {``
             room.users.push({ userId: userId, role: "user" })
             await room.save({ validateBeforeSave: false })
 
+            io.to(roomId).emit("user-joined", userId);
+
             return res.status(200).json(new ApiResponse(200, room, "Joined room successfully"))
         } catch (error) {
             throw new ApiError(500, "Server error occurred while joining room", error)
@@ -450,9 +452,16 @@ const getRoomInfo = asyncHandler( async (req, res) => {
     }
 })
 
-const enterRoom = asyncHandler(async (req, res) => {
-    const userId = req.user._id; // Authenticated user ID
-    const { roomId } = req.params; // Room ID from the request
+const enterRoom = async ( reqOrParams, res = null ) => {
+
+    // const userId = req.user._id; // Authenticated user ID
+    // const { roomId } = req.params; // Room ID from the request
+
+    const isHttpRequest = !!res
+    const { userId, roomId} = isHttpRequest ? {
+        userId: reqOrParams.user._id,
+        roomId: reqOrParams.params.roomId
+    } : reqOrParams
 
     if (!userId) {
         throw new ApiError(400, "Invalid user ID");
@@ -464,6 +473,12 @@ const enterRoom = asyncHandler(async (req, res) => {
 
     // Validate the room
     const room = await Room.findById(roomId);
+    
+    // add a query to fetch latest 10 records...
+    // add a query to fetch latest 10 records...
+    // add a query to fetch latest 10 records...
+    // add a query to fetch latest 10 records...
+
     if (!room) {
         throw new ApiError(404, "Room not found");
     }
@@ -474,19 +489,20 @@ const enterRoom = asyncHandler(async (req, res) => {
     }
 
     try {
-        // Emit an event to join the socket.io room
-        // const socket = req.app.get("socket"); // Assuming the socket instance is stored in the app
-
-        io.to(roomId).emit("user-joined", { userId, roomId });
         console.log(`User ${userId} entered socket.io room: ${roomId}`);
 
-        return res
-            .status(200)
-            .json(new ApiResponse(200, room, "Entered room successfully"));
+        if(isHttpRequest) {
+            return res
+                .status(200)
+                .json(new ApiResponse(200, room, "Entered room successfully"));
+        }
+
+        return { room, roomId, userId}; 
+        // Return the roomId and userId for further processing in socket context
     } catch (error) {
         throw new ApiError(500, "Server error occurred while entering the room", error);
     }
-});
+}
 
 
 
