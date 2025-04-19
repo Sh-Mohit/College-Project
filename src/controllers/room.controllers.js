@@ -193,13 +193,17 @@ const deleteRoom = asyncHandler(async (req, res) => {
         console.log("Deletion performed");
         deletionSession.endSession()
 
+
+        // notifyinng all users in the room :- "room-deleted"
+        io.to(roomId).emit("room-deleted", roomId); 
+        io.socketsLeave(roomId); // removing all sockets from this room
+
         return res.status(200).json(new ApiResponse(200, deleteRoom, "Room deleted sucessfully"))
 
     } catch (error) {
         deletionSession.abortTransaction()
-        throw new ApiError(500, "server error occurred ", error)
         deletionSession.endSession()
-
+        throw new ApiError(500, "server error occurred ", error)
     }
 })
 
@@ -329,6 +333,8 @@ const joinRoomUsingLink = asyncHandler(async (req, res) => {
 
         await room.save({ validateBeforeSave: false })
 
+        io.to(decodedToken.roomId).emit("user-joined", userId);
+
         return res
             .status(200)
             .json(new ApiResponse(200, room, "Joined successfully"))
@@ -360,6 +366,8 @@ const leaveRoom = asyncHandler( async (req, res) => {
         room.users = room.users.filter( user => user.userId.toString() !== userId.toString())        
     
         await room.save({validateBeforeSave: false})
+
+        io.to(roomId).emit("user-left", userId)
     
         return res
                 .status(200)
