@@ -372,10 +372,8 @@ const getRoomInfo = asyncHandler( async (req, res) => {
 
     const { page = 1, limit = 10} = req.query
     const {roomId} = req.params
-    // console.log(roomId);
-    const roomIdObject = new mongoose.Types.ObjectId(roomId)
 
-    // console.log(page, limit);
+    const roomIdObject = new mongoose.Types.ObjectId(roomId)
     
 
     if(!roomId){
@@ -434,7 +432,9 @@ const getRoomInfo = asyncHandler( async (req, res) => {
         .skip((page - 1) * limit)
         .limit( parseInt(limit))
 
-        // console.log(room);
+        if(!room){
+            throw new ApiError(404, "No room found");
+        }
         
 
         return res
