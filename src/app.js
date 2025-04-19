@@ -8,6 +8,7 @@ import friendRequestRouter from "./routes/friendrequest.routes.js"
 import messageRouter from "./routes/message.routes.js"
 import { Server } from "socket.io"
 import { pushAMessage } from "./controllers/message.conrollers.js"
+import { pushALog, deleteALog } from "./controllers/log.controllers.js"
 
 
 const app = express()
@@ -57,14 +58,15 @@ io.on("connection", (socket) => {
 
     socket.on("send-message", async (data) => {
         
-        const { roomId, message, userId, msgurl } = data;
+        const { roomId, message, userId, msgurl, images } = data;
         const xroomId = roomId;
         try {
             const savedMessage = await pushAMessage({
                 messageText : message,
                 roomId: roomId,
                 userId: userId,
-                messageURL: msgurl
+                messageURL: msgurl,
+                messageImages : images || []
             });
 
             // console.log(savedMessage);
@@ -85,6 +87,58 @@ io.on("connection", (socket) => {
             socket.emit("error","Failed to send message");
         }
     });
+
+    socket.on("push-log", async(data) => {
+        const {roomId, logText, logURL, logImages, userId} = data
+        
+        try{
+            const savedLog = await pushALog({
+                logText: logText,
+                roomId: roomId,
+                userId: userId,
+                logURL: logURL,
+                logImages: logImages || []
+            })
+
+            console.log(`Socket rooms:`, socket.rooms);
+            console.log(`Room ${roomId} members:`, io.sockets.adapter.rooms.get(roomId));
+
+            if (!socket.rooms.has(roomId)) {
+                console.log(`Socket ${socket.id} is not part of room ${roomId}, forcing join.`);
+                socket.join(roomId);
+            }
+            io.to(roomId).emit("log", `${savedLog}`);
+            
+            console.log("log pushed");
+        } catch(err){
+            console.log("Error saving log", err);
+            socket.emit("error","Failed to send log");
+        }
+    })
+
+    socket.on("delete-log", async(data) => {
+        const { roomId, logId,userId } = data;
+        try {
+            const logdeletion = await deleteALog({
+                logId: logId,
+                roomId: roomId,
+                userId: userId
+            })
+
+
+            if (!socket.rooms.has(roomId)) {
+                console.log(`Socket ${socket.id} is not part of room ${roomId}, forcing join.`);
+                socket.join(roomId);
+            }
+            io.to(roomId).emit("log-deleted", `${logdeletion}`);
+            
+            console.log("log deleted");
+        } catch (error) {
+            console.log("Error deleting log", error);
+            socket.emit("error", "Failed to delete log");
+            
+        }
+    })
     
 })
 

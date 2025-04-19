@@ -5,7 +5,7 @@ import { ApiError } from "../utils/ApiError.js"
 
 export const verifyJWT = asyncHandler(async (req, _, next) => {
 
-    const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2RhOTNmYjNkN2FkOGVkMTgyYjBhNGYiLCJ1c2VybmFtZSI6InVzZXIyIiwiZW1haWwiOiJ1c2VyMkBnbWFpbC5jb20iLCJpYXQiOjE3NDQ3OTg4ODcsImV4cCI6MTc0NDg4NTI4N30.uYSjppqb1zyzt-vWyv_NB9hFoUiey2MGyo-4Eb68sJ0" || req.cookies.accessToken || req.header("Authorization")?.replace("Bearer ", "")
+    const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2UxYTBiNmVlMjE4NDY5MjJlODEyNWUiLCJ1c2VybmFtZSI6InVzZXIzIiwiZW1haWwiOiJ1c2VyM0BnbWFpbC5jb20iLCJpYXQiOjE3NDQ5ODI2OTcsImV4cCI6MTc0NTA2OTA5N30.3GeBZYoP8kZbc0zlxH9Qb38Jq9Asz6g6xLQtYMx0CtY" || req.cookies.accessToken || req.header("Authorization")?.replace("Bearer ", "")
 
     if (!token) {
         throw new ApiError(401, "Unauthorized")

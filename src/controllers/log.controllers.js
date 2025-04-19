@@ -5,6 +5,10 @@ import { Log } from "../models/log.models.js";
 import { Room } from "../models/room.models.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 
+import { io } from "../app.js"
+
+
+
 async function uploaderFunction(array) {
 
     try {
@@ -40,12 +44,18 @@ async function deletionFunction (array){
 
 
 
-const pushALog = asyncHandler(async (req, res) => {
-    // console.log(1);
+const pushALog = async (reqOrParams, res = null) => {
     
+    const isHttpRequest = !!res // Check if called via HTTP (req, res) or socket.io (params only)
 
-    const { logText, logURL } = req.body
-    const { roomId } = req.params
+    const { logText, logURL, roomId, userId} = isHttpRequest ? { 
+        logText : reqOrParams.body.logtext, 
+        logURL : reqOrParams.body.logurl, 
+        roomId : reqOrParams.params.roomId, 
+        userId: reqOrParams.user._id
+    } 
+    : reqOrParams
+
     if (logText === "") {
         throw new ApiError(400, "Text is required")
     }
@@ -55,12 +65,13 @@ const pushALog = asyncHandler(async (req, res) => {
         throw new ApiError(404, "No room exists with given room-id")
     }
 
-    const imagesLocalPathArray = [
-        req.files?.images[0]?.path,
-        req.files?.images[1]?.path,
-        req.files?.images[2]?.path,
-        req.files?.images[3]?.path
-    ]
+    // const imagesLocalPathArray = [
+    //     req.files?.images[0]?.path,
+    //     req.files?.images[1]?.path,
+    //     req.files?.images[2]?.path,
+    //     req.files?.images[3]?.path
+    // ]
+    const imagesLocalPathArray = isHttpRequest ? reqOrParams.files?.images || [] : [];
 
     let uploadedImagesPathArray;
     try {
@@ -75,7 +86,7 @@ const pushALog = asyncHandler(async (req, res) => {
             content: logText,
             url: logURL || "",
             images: uploadedImagesPathArray,
-            owner: req.user?._id,
+            owner: userId,
             room: roomId
         })        
 
@@ -85,15 +96,19 @@ const pushALog = asyncHandler(async (req, res) => {
             roomId,
             {
                 $addToSet: { log : createdLog._id}
-            }
+            },
+            { new: true }
         )
 
         if(!createdLog){
             throw new ApiError(500, "Server error occurred pushing log")
         }
 
-        return res.status(200).json(new ApiResponse(200, createdLog, "Log pushed successfully"))
+        if(isHttpRequest){
+            return res.status(200).json(new ApiResponse(200, createdLog, "Log pushed successfully"))
+        }
 
+        return createdLog;
     } catch (error) {
         
         if(uploadedImagesPathArray){
@@ -104,11 +119,20 @@ const pushALog = asyncHandler(async (req, res) => {
 
         throw new ApiError(500, "Server error occurred creating log (general)", error)
     }
-})
+}
 
-const deleteALog = asyncHandler( async( req, res) => {
+const deleteALog =async( reqOrParams, res = null) => {
 
-    const { userId, roomId, logId } = req.params
+    // const { userId, roomId, logId } = req.params
+
+    const isHttpRequest = !!res // Check if called via HTTP (req, res) or socket.io (params only)
+    const { userId, roomId, logId} = isHttpRequest ? {
+        userId : req.user._id,
+        roomId: req.params.roomId,
+        logId: req.params.logId
+    } : reqOrParams 
+
+
     if([userId, roomId, logId].some( item => item === "")){
         throw new ApiError(400, "Invalid request")
     }    
@@ -150,15 +174,18 @@ const deleteALog = asyncHandler( async( req, res) => {
 
         console.log("items deleted successfully");
 
-        return res
-                .status(200)
-                .json(new ApiResponse(200, {logDeletion, deletionFromRoom}, "Deleted successfully"))
+        if(isHttpRequest){
+            return res
+                    .status(200)
+                    .json(new ApiResponse(200, {logDeletion, deletionFromRoom}, "Deleted successfully"))
+        }
 
+        return logDeletion;
     } catch (error) {
         throw new ApiError(500, "Server error occurred while deleting log (general) ", error)
     }
     
-})
+}
 
 
 export {

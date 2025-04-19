@@ -33,3 +33,8 @@ notificationSchema , friendRequestSchema added...
 
 
 
+socket.io workin for messaging and log pushing
+
+
+***to be implemented for middleware-level-authorization so to get the userId without explicitly getting from user-side
+2. Socket.IO Authorization at the Handshake Level
