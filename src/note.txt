@@ -29,9 +29,6 @@ notificationSchema , friendRequestSchema added...
 
 
 
-3 days long frustration , now solved : message.controllers.js : issue => url_validtor_function backfire
-
-
 
 socket.io workin for messaging and log pushing
 
